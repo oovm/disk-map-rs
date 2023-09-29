@@ -1,8 +1,8 @@
 [package]
-name = "poly-rt"
+name = "nyar-collection"
 version = "0.0.0"
 authors = ["Aster <192607617@qq.com>"]
-description = "..."
+description = "GC friendly data structure, like RBB+HAMT"
 repository = "https://github.com/oovm/sub_projects"
 documentation = "https://docs.rs/sub_projects"
 readme = "Readme.md"
@@ -10,18 +10,12 @@ license = "MPL-2.0"
 edition = "2021"
 
 [dependencies]
-futures = "0.3"
-serde = { version = "1.0.147", features = ["derive"] }
-
-[dependencies.hyper]
-version = "0.14.23"
-features = ["full"]
-
-[dependencies.tokio]
-version = "1.21.2"
-features = ["full"]
+im = "15.1.0"
+serde = { version = "1.0.188", optional = true, features = ["derive"]}
+shredder = "0.2.0"
 
 [dev-dependencies]
 
 [features]
+serde = ["dep:serde"]
 default = []

@@ -1,4 +1,7 @@
-use im::Vector;
+use im::{
+    vector::{Iter, IterMut},
+    Vector,
+};
 use shredder::{
     marker::{GcDrop, GcSafe},
     Scan, Scanner,
@@ -7,6 +10,7 @@ use std::{
     collections::BTreeMap,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
+    iter::{Skip, StepBy, Take},
 };
 
 #[cfg(feature = "serde")]
@@ -24,21 +28,13 @@ pub struct NyarTuple<T> {
 }
 
 pub struct NyarTupleView<'i, T> {
-    raw: &'i Vector<T>,
-    start: usize,
-    end: usize,
-    step: usize,
+    raw: StepBy<Skip<Take<Iter<'i, T>>>>,
     rev: bool,
-    current: usize,
 }
 
 pub struct NyarTupleEdit<'i, T> {
-    raw: &'i mut Vector<T>,
-    start: usize,
-    end: usize,
-    step: usize,
+    raw: StepBy<Skip<Take<IterMut<'i, T>>>>,
     rev: bool,
-    current: usize,
 }
 
 impl<T: Clone> Default for NyarTuple<T> {
@@ -105,32 +101,60 @@ impl<T: Clone> NyarTuple<T> {
             return None;
         }
         else if ordinal > 0 {
-            -ordinal
+            ordinal - 1
         }
         else {
             let max = self.raw.len() as isize;
+            if 0 > max + ordinal {
+                return None;
+            }
             max + ordinal
         };
         Some(offset as usize)
     }
-    pub fn get_offset(&self, offset: usize) -> Option<T> {
-        self.raw.get(offset).cloned()
+    pub fn get_offset(&self, offset: usize) -> Option<&T> {
+        self.raw.get(offset)
     }
-    pub fn get_ordinal(&self, ordinal: isize) -> Option<T> {
+    pub fn get_ordinal(&self, ordinal: isize) -> Option<&T> {
         self.get_offset(self.cast_offset(ordinal)?)
     }
-    pub fn get_named(&self, name: &str) -> Option<T> {
+    pub fn get_named(&self, name: &str) -> Option<&T> {
         let index = self.map.get(name)?;
-        self.raw.get(*index).cloned()
+        self.raw.get(*index)
     }
+    /// Obtain an immutable view, the start and end are both closed ranges
+    ///
+    /// # Arguments
+    ///
+    /// * `head`: The ordinal number of the starting element
+    /// * `tail`: The ordinal number of the ending element
+    /// * `step`: Step between each element
+    ///
+    /// # Examples
+    ///
+    /// ```vk
+    /// 0..=9[1: 1] = [0]
+    /// 0..=9[1:-1] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    /// 0..=9[1: 2] = [0, 1]
+    /// 0..=9[1:-2] = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    /// 0..=9[1: 3] = [0, 1, 2]
+    /// 0..=9[1:-3] = [0, 1, 2, 3, 4, 5, 6, 7]
+    /// 0..=9[:: 1] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    /// 0..=9[::-1] = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+    /// 0..=9[:: 2] = [0, 2, 4, 6, 8]
+    /// 0..=9[::-2] = [8, 6, 4, 2, 0]
+    /// 0..=9[:: 3] = [0, 3, 6, 9]
+    /// 0..=9[::-3] = [9, 6, 3, 0]
+    /// ```
     pub fn get_range(&self, head: isize, tail: isize, step: isize) -> NyarTupleView<T> {
         let start = self.cast_offset(head).unwrap_or(self.raw.len() + 1);
-        let end = self.cast_offset(tail).unwrap_or(0);
+        let end = self.cast_offset(tail).unwrap_or(0) + 1;
+        // println!("{}: {} -> {}", self.raw.len(), start, end);
         if step > 0 {
-            NyarTupleView { raw: &self.raw, start, end, step: step as usize, rev: false, current: start }
+            NyarTupleView { raw: self.raw.iter().take(end).skip(start).step_by(step.unsigned_abs()), rev: false }
         }
         else {
-            NyarTupleView { raw: &self.raw, start, end, step: (-step) as usize, rev: true, current: end }
+            NyarTupleView { raw: self.raw.iter().take(end).skip(start).step_by(step.unsigned_abs()), rev: true }
         }
     }
     pub fn append_named<I: Into<T>>(&mut self, name: &str, item: I) -> Result<(), String> {

@@ -3,8 +3,9 @@ use serde::{ser::SerializeSeq, Serialize, Serializer};
 
 impl<T> Serialize for NyarTuple<T>
 where
-    T: Serialize,
+    T: Serialize + Clone,
 {
+    /// The binding name is part of the type and will be erased during serialization
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,

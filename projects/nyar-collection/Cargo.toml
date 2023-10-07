@@ -1,6 +1,6 @@
 [package]
 name = "nyar-collection"
-version = "0.0.0"
+version = "0.0.1"
 authors = ["Aster <192607617@qq.com>"]
 description = "GC friendly functional data structure, like RBB & HAMT"
 repository = "https://github.com/oovm/nyar-collection/tree/dev/projects/nyar-collection"

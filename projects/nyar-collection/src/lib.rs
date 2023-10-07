@@ -1,12 +1,14 @@
 mod pool;
 
-mod tuple;
-mod sorted;
 mod indexed;
+mod sorted;
+mod tuple;
 
 mod hamt;
 
-pub use crate::tuple::{NyarTuple};
-pub use crate::hamt::MappedTrie;
-pub use crate::sorted::{OrderMap, OrderSet};
-pub use crate::indexed::{IndexMap, IndexSet};
+pub use crate::{
+    hamt::MappedTrie,
+    indexed::{IndexMap, IndexSet},
+    sorted::{OrderMap, OrderSet},
+    tuple::{NyarTuple, NyarTupleEdit, NyarTupleView},
+};

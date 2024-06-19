@@ -2,6 +2,7 @@ use im::{
     vector::{Iter, IterMut},
     Vector,
 };
+use nyar_error::NyarError;
 use shredder::{
     marker::{GcDrop, GcSafe},
     Scan, Scanner,
@@ -95,7 +96,7 @@ where
     }
 }
 
-impl<T: Clone> NyarTuple<T> {
+impl<A: Clone> NyarTuple<A> {
     pub fn cast_offset(&self, ordinal: isize) -> Option<usize> {
         let offset = if ordinal == 0 {
             return None;
@@ -112,13 +113,13 @@ impl<T: Clone> NyarTuple<T> {
         };
         Some(offset as usize)
     }
-    pub fn get_offset(&self, offset: usize) -> Option<&T> {
+    pub fn get_offset(&self, offset: usize) -> Option<&A> {
         self.raw.get(offset)
     }
-    pub fn get_ordinal(&self, ordinal: isize) -> Option<&T> {
+    pub fn get_ordinal(&self, ordinal: isize) -> Option<&A> {
         self.get_offset(self.cast_offset(ordinal)?)
     }
-    pub fn get_named(&self, name: &str) -> Option<&T> {
+    pub fn get_named(&self, name: &str) -> Option<&A> {
         let index = self.map.get(name)?;
         self.raw.get(*index)
     }
@@ -146,7 +147,7 @@ impl<T: Clone> NyarTuple<T> {
     /// 0..=9[:: 3] = [0, 3, 6, 9]
     /// 0..=9[::-3] = [9, 6, 3, 0]
     /// ```
-    pub fn get_range(&self, head: isize, tail: isize, step: isize) -> NyarTupleView<T> {
+    pub fn get_range(&self, head: isize, tail: isize, step: isize) -> NyarTupleView<A> {
         let start = self.cast_offset(head).unwrap_or(self.raw.len() + 1);
         let end = self.cast_offset(tail).unwrap_or(0) + 1;
         // println!("{}: {} -> {}", self.raw.len(), start, end);
@@ -157,25 +158,77 @@ impl<T: Clone> NyarTuple<T> {
             NyarTupleView { raw: self.raw.iter().take(end).skip(start).step_by(step.unsigned_abs()), rev: true }
         }
     }
-    pub fn append_named<I: Into<T>>(&mut self, name: &str, item: I) -> Result<(), String> {
+    /// Insert a named element starting from the back
+    ///
+    /// # Arguments
+    ///
+    /// * `name`:
+    /// * `item`:
+    ///
+    /// returns: Result<(), String>
+    ///
+    /// # Examples
+    ///
+    /// ```vk
+    /// ```
+    pub fn append_named<I: Into<A>>(&mut self, name: &str, item: I) -> Result<(), NyarError> {
         if self.map.contains_key(name) {
-            return Err("KeyAlreadyExists".to_string());
+            return Err(NyarError::runtime_error(format!(
+                "Tuple key `{name}` already exists and cannot be created or written again"
+            )));
         }
         self.raw.push_back(item.into());
         self.map.insert(Box::from(name), self.raw.len());
         Ok(())
     }
-    pub fn append_one<I: Into<T>>(&mut self, item: I) {
+    /// Append one element
+    ///
+    /// # Arguments
+    ///
+    /// * `item`:
+    ///
+    /// returns: ()
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// ```
+    pub fn append_one<I: Into<A>>(&mut self, item: I) {
         self.raw.push_back(item.into())
     }
-    pub fn append_many<I: Iterator<Item = T>>(&mut self, items: I) {
+    /// Append many elements
+    ///
+    /// # Arguments
+    ///
+    /// * `items`:
+    ///
+    /// returns: ()
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// ```
+    pub fn append_many<I: Iterator<Item = A>>(&mut self, items: I) {
         for item in items {
             self.append_one(item)
         }
     }
-    pub fn prepend_named<I: Into<T>>(&mut self, name: &str, item: I) -> Result<(), String> {
+    /// Insert a named element starting from the front
+    ///
+    /// # Arguments
+    ///
+    /// * `name`:
+    /// * `item`:
+    ///
+    /// # Examples
+    ///
+    /// ```vk
+    /// ```
+    pub fn prepend_named<I: Into<A>>(&mut self, name: &str, item: I) -> Result<(), NyarError> {
         if self.map.contains_key(name) {
-            return Err("KeyAlreadyExists".to_string());
+            return Err(NyarError::runtime_error(format!(
+                "Tuple key `{name}` already exists and cannot be created or written again"
+            )));
         }
         self.raw.push_back(item.into());
         for value in self.map.values_mut() {
@@ -184,12 +237,54 @@ impl<T: Clone> NyarTuple<T> {
         self.map.insert(Box::from(name), 0);
         Ok(())
     }
-    pub fn prepend_one<I: Into<T>>(&mut self, item: I) {
+    /// Prepend one
+    ///
+    /// # Arguments
+    ///
+    /// * `item`:
+    ///
+    /// returns: ()
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// ```
+    pub fn prepend_one<I: Into<A>>(&mut self, item: I) {
         self.raw.push_front(item.into())
     }
-    pub fn prepend_many<I: Iterator<Item = T>>(&mut self, items: I) {
+    /// Prepend many
+    ///
+    /// # Arguments
+    ///
+    /// * `items`:
+    ///
+    /// returns: ()
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// ```
+    pub fn prepend_many<I: Iterator<Item = A>>(&mut self, items: I) {
         for item in items {
             self.prepend_one(item)
         }
+    }
+
+    /// Fast map action
+    ///
+    /// # Arguments
+    ///
+    /// * `f`: operator
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// ```
+    pub fn map<F, B>(&self, f: F) -> NyarTuple<B>
+    where
+        F: FnMut(&A) -> B,
+        B: Clone,
+    {
+        self.raw.iter().map(f).collect()
     }
 }

@@ -14,6 +14,10 @@ im = "15.1.0"
 serde = { version = "1.0.188", optional = true, features = ["derive"]}
 shredder = "0.2.0"
 
+[dependencies.nyar-error]
+version = "0.1.*"
+#path = 'C:\Users\Dell\CLionProjects\nyar-vm\projects\nyar-error'
+
 [dev-dependencies]
 
 [features]
